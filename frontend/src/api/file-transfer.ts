@@ -3,11 +3,6 @@ interface UploadResponse {
   expire_at: string;
 }
 
-interface DownloadResponse {
-  url: string;
-  fileName: string;
-}
-
 export const fileTransferApi = {
   API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
   // 上傳檔案
