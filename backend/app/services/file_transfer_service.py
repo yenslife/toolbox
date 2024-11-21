@@ -3,7 +3,7 @@ import random
 import string
 from datetime import timedelta, datetime
 
-from settings import UPLOAD_DIR, EXPIRE_MINUTES
+from app.settings import UPLOAD_DIR, EXPIRE_MINUTES
 
 file_storage = {}
 

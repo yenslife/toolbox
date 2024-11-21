@@ -8,8 +8,8 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 
-from settings import UPLOAD_DIR, CHECK_INTERVAL_SECONDS, EXPIRE_MINUTES
-from services.file_transfer_service import (
+from app.settings import UPLOAD_DIR, CHECK_INTERVAL_SECONDS, EXPIRE_MINUTES
+from app.services.file_transfer_service import (
     save_file, 
     delete_files,
     file_storage
