@@ -1,51 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast"
 import { useToast } from "@/hooks/use-toast";
 import { UploadIcon, DownloadIcon } from "@radix-ui/react-icons";
 import { useFileTransfer } from '@/hooks/use-file-transfer';
+import { useEffect } from "react";
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB in bytes
 
 export default function FileTransfer() {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const { isUploading, uploadCode, expireAt, uploadError, downloadError, downloadURL, uploadFile, getDownloadFile } = useFileTransfer();
   const [downloadCode, setDownloadCode] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  // 處理文件選擇
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      console.log("File selected:", selectedFile);
-    }
-  };
-
-  // 處理拖曳
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault(); // 當拖曳到上傳區域時，防止預設行為 (通常瀏覽器會打開檔案)
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault(); // 當拖曳到上傳區域時，防止預設行為 (通常瀏覽器會打開檔案)
-    const droppedFile = event.dataTransfer.files[0];
-    if (droppedFile) {
-      setFile(droppedFile);
-      console.log("File dropped:", droppedFile);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (file) {
-      await uploadFile(file);
-    }
-  };
-
-  const handleGetDownloadFile = async (code: string) => {
-    await getDownloadFile(code);
-    if (downloadURL) {
+  useEffect(() => {
+    if (downloadURL !== null) {
+      setIsDownloading(false);
       toast({
         title: "下載連結已準備就緒",
         description: "點擊下方按鈕開始下載檔案",
@@ -59,6 +34,60 @@ export default function FileTransfer() {
         ),
       });
     }
+  }, [downloadURL, toast]);
+
+  // 處理文件選擇
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        toast({
+          title: "檔案過大",
+          description: "檔案大小不能超過 2GB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFile(selectedFile);
+    }
+  }, [toast]);
+
+  // 處理拖曳
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) {
+      if (droppedFile.size > MAX_FILE_SIZE) {
+        toast({
+          title: "檔案過大",
+          description: "檔案大小不能超過 2 GB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFile(droppedFile);
+    }
+  };
+
+  const handleUpload = useCallback(async () => {
+    if (file) {
+      await uploadFile(file);
+    }
+  }, [file, uploadFile]);
+
+  const handleGetDownloadFile = async (code: string) => {
+    setIsDownloading(true);
+    try {
+      await getDownloadFile(code);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -66,7 +95,7 @@ export default function FileTransfer() {
       {/* 使用說明 */}
       <div className="flex flex-col gap-4 p-4">
         <p className="text-muted-foreground">
-          使用說明：將檔案拖曳到上傳區域或點擊按鈕上傳，完成後取得下載代碼，分享代碼即可讓他人下載檔案。(有效時間：30 分鐘)
+          使用說明：將檔案拖曳到上傳區域或點擊按鈕上傳，完成後取得下載代碼，分享代碼即可讓他人下載檔案。(有效時間：30 分鐘，最多 2 GB)
         </p>
         {/* 上傳區域 */}
         <Card
@@ -97,6 +126,13 @@ export default function FileTransfer() {
             <div className="flex flex-col gap-2">
               <p className="text-primary font-semibold">已選擇文件：</p>
               <p className="text-muted-foreground">{file.name}</p>
+              <p className="text-muted-foreground">大小：{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+                style={{ width: `${isUploading ? '50%' : '0%'}` }}
+              />
             </div>
             <Button 
               onClick={handleUpload} 
@@ -134,9 +170,16 @@ export default function FileTransfer() {
           <Button 
             variant="outline" 
             onClick={() => downloadCode && handleGetDownloadFile(downloadCode)}
-            disabled={!downloadCode}
+            disabled={!downloadCode || isDownloading}
           >
-            取得下載連結
+            {isDownloading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-t-transparent border-primary rounded-full animate-spin" />
+                準備下載中... 
+              </div>
+            ) : (
+              "取得下載連結"
+            )}
           </Button>
         </Card>
         {downloadError && (

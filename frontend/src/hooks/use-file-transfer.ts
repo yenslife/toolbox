@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fileTransferApi } from '@/api/file-transfer';
+import { fileTransferApi } from '@/lib/api/file-transfer';
 
 export function useFileTransfer() {
   const [isUploading, setIsUploading] = useState(false);
